@@ -127,8 +127,10 @@ function groundAt(x,z){
 }
 const N=TRACK.length;
 let cx=0,cz=0; for(const pt of TRACK){cx+=pt[0];cz+=pt[2];} cx/=N; cz/=N;
-const start=new THREE.Vector3(TRACK[0][0],TRACK[0][1]+0.15,TRACK[0][2]);
-const skyStart=new THREE.Vector3(start.x,start.y+0.9,start.z);
+let mx=1e9,Mx=-1e9,mz=1e9,Mz=-1e9; for(const p of TRACK){mx=Math.min(mx,p[0]);Mx=Math.max(Mx,p[0]);mz=Math.min(mz,p[2]);Mz=Math.max(Mz,p[2]);}
+const yawInit=(Mx-mx)>(Mz-mz)?Math.PI/2:0;
+const start=new THREE.Vector3(cx,groundAt(cx,cz)+0.30,cz);
+const skyStart=new THREE.Vector3(start.x,start.y+1.1,start.z);
 const viewer = new GS.Viewer({
  cameraUp:[0,1,0], initialCameraPosition:[skyStart.x,skyStart.y,skyStart.z], initialCameraLookAt:[start.x,start.y,start.z],
  sharedMemoryForWorkers:false, sphericalHarmonicsDegree:0, useBuiltInControls:false,
@@ -145,7 +147,7 @@ await new Promise(r=>setTimeout(r,600));
 $('load').remove();
 viewer.start();
 const cam=viewer.camera;
-function pathDir0(){ const A=TRACK[0],B=TRACK[8]; return Math.atan2(B[0]-A[0],B[2]-A[2]); }
+function pathDir0(){ return yawInit; }
 let phase='intro', t0=performance.now()/1000;
 let yaw=pathDir0(), pitch=-0.05;
 const pos=start.clone();
