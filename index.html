@@ -162,7 +162,7 @@ const splatBlob = await fetchProgress(IS_MOBILE?'village_mobile.splat':'village_
 let fake=0.33;
 const anim=setInterval(()=>{ fake+=(0.97-fake)*0.06; setProgress(fake); },250); // сборка сцены = медленные две трети
 const blobUrl=URL.createObjectURL(splatBlob);
-await viewer.addSplatScene(blobUrl,{format:GS.SceneFormat.Splat,showLoadingUI:false,rotation:[1,0,0,0]});
+await viewer.addSplatScene(blobUrl,{format:GS.SceneFormat.Splat,showLoadingUI:false,rotation:[0.999276,-0.025749,0.000000,-0.028009],position:[0,0.7344,0]});
 URL.revokeObjectURL(blobUrl);
 clearInterval(anim);
 setProgress(1);
