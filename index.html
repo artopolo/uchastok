@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="theme-color" content="#000000">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Участок">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Участок</title>
+<style>
+ html,body{margin:0;height:100dvh;overflow:hidden;background:#000;font-family:-apple-system,sans-serif;touch-action:none}
+ #load{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;color:#fff;background:#0a0f14;z-index:10}
+ #load svg{width:auto;height:min(80vh,150vw);max-width:92vw}
+ #loadTxt{font-size:15px;color:rgba(255,255,255,.7);letter-spacing:.06em}
+ #ui{position:fixed;left:0;right:0;bottom:calc(env(safe-area-inset-bottom,0px) + 12px);display:flex;flex-direction:column;align-items:center;gap:6px;z-index:11;color:rgba(255,255,255,.9);font-size:15px}
+ 
+ .row{display:flex;justify-content:center;align-items:flex-end;gap:16px;flex-wrap:nowrap;white-space:nowrap}
+ #spdwrap,.tglwrap{align-self:flex-end}
+ #bRestart{align-self:flex-end;height:35px}
+ .gy{display:flex;align-items:center}
+ .sl{display:flex;flex-direction:column;align-items:center;gap:6px}
+ .sl span{font-variant-numeric:tabular-nums;text-shadow:0 1px 4px #000}
+ input[type=range]{-webkit-appearance:none;appearance:none;width:min(27vw,170px);height:30px;background:transparent}
+ input[type=range]::-webkit-slider-runnable-track{height:3px;background:rgba(255,255,255,.5);border-radius:1px}
+ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:26px;height:26px;border-radius:50%;background:#fff;margin-top:-11px;box-shadow:0 1px 6px rgba(0,0,0,.6)}
+ input[type=range]::-moz-range-track{height:2px;background:rgba(255,255,255,.5)}
+ input[type=range]::-moz-range-thumb{width:26px;height:26px;border-radius:50%;background:#fff;border:none}
+ #bRestart{background:none;border:none;color:rgba(255,255,255,.9);font-size:34px;display:flex;align-items:center;padding:0 6px;text-shadow:0 1px 6px #000}
+ #gyroAsk{position:fixed;inset:0;display:none;align-items:center;justify-content:center;z-index:9;background:rgba(0,0,0,.45)}
+ #gyroAsk button{background:rgba(255,255,255,.15);backdrop-filter:blur(12px);color:#fff;border:1px solid rgba(255,255,255,.4);border-radius:16px;padding:16px 26px;font-size:17px}
+ #bRide{position:fixed;top:calc(env(safe-area-inset-top,0px) + 10px);left:14px;z-index:6;background:rgba(20,20,20,.6);
+  color:#fff;border:1px solid rgba(255,255,255,.45);border-radius:14px;font-size:15px;padding:6px 14px}
+ #bRide.on{color:#fc3;border-color:#fc3}
+ #crash{position:fixed;inset:0;display:none;align-items:center;justify-content:center;font-size:30vw;z-index:8;
+  pointer-events:none;background:rgba(255,60,30,.25)}
+
+ #ui{opacity:1}
+ .tglwrap{display:flex;flex-direction:column;align-items:center;gap:6px}
+ ..tlab-x{}
+ .tlab{font-size:18px;color:#fff;color:rgba(255,255,255,.75);text-shadow:0 1px 4px #000}
+ .switch{position:relative;width:58px;height:35px;display:inline-block}
+ .switch input{opacity:0;width:0;height:0}
+ .knob{position:absolute;inset:0;border-radius:16px;background:rgba(120,120,128,.45);transition:.25s;cursor:pointer}
+ .knob:before{content:"";position:absolute;width:31px;height:31px;border-radius:50%;background:#fff;top:2px;left:2px;transition:.25s;box-shadow:0 1px 4px rgba(0,0,0,.4)}
+ .switch input:checked + .knob{background:#34c759}
+ .switch input:checked + .knob:before{transform:translateX(23px)}
+ #spdwrap{position:relative;display:flex;align-items:center;gap:8px}
+ #spdwrap .arr{display:flex;align-items:center;opacity:.85;touch-action:manipulation;cursor:pointer;padding:8px 4px}
+ #sSpeed{width:min(56vw,520px)!important}
+ #spdLab{position:absolute;top:-20px;left:0;font-size:14px;font-variant-numeric:tabular-nums;
+  text-shadow:0 1px 4px #000;transform:translateX(-50%);pointer-events:none;white-space:nowrap}
+#sSpeed.pulse::-webkit-slider-thumb{animation:thpulse .8s ease-in-out 2}
+@keyframes thpulse{0%{box-shadow:0 0 0 2px rgba(255,255,255,.9)}50%{box-shadow:0 0 0 28px rgba(255,255,255,.15)}100%{box-shadow:0 0 0 0 rgba(255,255,255,0)}}
+
+@media (max-width:700px){
+  .row{width:100%;box-sizing:border-box;padding:0 14px;gap:22px;flex-direction:column;align-items:flex-start;white-space:normal}
+  #gyroWrap,#sndwrap{align-self:flex-start}
+  #bRestart{order:1;font-size:60px;line-height:56px;position:static;padding:0;align-self:flex-start;color:rgba(255,255,255,.55);font-weight:200;text-shadow:0 1px 4px rgba(0,0,0,.4)}
+  #gyroWrap{order:2} #sndwrap{order:3;position:static}
+  #spdwrap{order:4;width:100%;min-width:0;gap:6px;justify-content:center}
+  #sSpeed{flex:1;width:auto!important;min-width:0;max-width:none}
+  .tglwrap{flex-direction:row-reverse;align-items:center;gap:10px}
+  .switch{width:52px;height:32px}
+  .knob:before{width:28px;height:28px}
+  .switch input:checked + .knob:before{transform:translateX(20px)}
+  .tlab{font-size:17px}
+ }
+</style>
+</head>
+<body>
+<div id="load">
+ <svg viewBox="0 0 400 560">
+  <text x="200" y="34" fill="rgba(255,255,255,.9)" font-size="22" text-anchor="middle" letter-spacing="4">УЧАСТОК</text>
+  <path id="route" d="M290.5,158.0 L279.7,113.5 L283.1,61.1 L259.9,93.5 L215.0,118.8 L162.5,145.2 L120.3,153.0 L73.5,166.4 L50.1,201.7 L40.5,240.2 L48.6,290.5 L57.6,348.2 L58.9,400.6 L56.4,428.9 L50.1,491.1 L66.5,474.5 L101.7,430.8 L157.4,417.8 L221.3,419.1 L239.0,455.3 L237.1,457.1 L243.9,407.1 L298.8,394.2 L325.3,435.8 L331.1,452.2 L310.8,401.9 L291.8,351.8 L283.5,287.1 L277.3,229.0 L284.9,178.3 L251.8,186.5 L194.6,203.2 L151.9,224.1 L110.3,255.4 L80.2,283.1 L86.9,336.6 L133.2,371.0 L161.2,387.0 L220.8,407.1 L270.6,372.7 L225.1,327.0 L179.1,291.5 L189.9,238.3 L248.8,222.3 L306.3,186.2 L311.5,161.9 L257.1,141.3 L210.4,147.0 L201.2,213.0 L127.4,236.2 L66.6,261.4 L46.0,334.8 L87.9,399.4 L168.3,437.4 L247.3,428.2 L313.5,373.7 L340.5,349.7 L269.3,307.2 L280.3,248.2 L331.6,193.1" fill="none" stroke="rgba(255,255,255,.25)" stroke-width="2" stroke-dasharray="4 6"/>
+  <path id="routeDone" d="M290.5,158.0 L279.7,113.5 L283.1,61.1 L259.9,93.5 L215.0,118.8 L162.5,145.2 L120.3,153.0 L73.5,166.4 L50.1,201.7 L40.5,240.2 L48.6,290.5 L57.6,348.2 L58.9,400.6 L56.4,428.9 L50.1,491.1 L66.5,474.5 L101.7,430.8 L157.4,417.8 L221.3,419.1 L239.0,455.3 L237.1,457.1 L243.9,407.1 L298.8,394.2 L325.3,435.8 L331.1,452.2 L310.8,401.9 L291.8,351.8 L283.5,287.1 L277.3,229.0 L284.9,178.3 L251.8,186.5 L194.6,203.2 L151.9,224.1 L110.3,255.4 L80.2,283.1 L86.9,336.6 L133.2,371.0 L161.2,387.0 L220.8,407.1 L270.6,372.7 L225.1,327.0 L179.1,291.5 L189.9,238.3 L248.8,222.3 L306.3,186.2 L311.5,161.9 L257.1,141.3 L210.4,147.0 L201.2,213.0 L127.4,236.2 L66.6,261.4 L46.0,334.8 L87.9,399.4 L168.3,437.4 L247.3,428.2 L313.5,373.7 L340.5,349.7 L269.3,307.2 L280.3,248.2 L331.6,193.1" fill="none" stroke="#fff" stroke-width="2.5"/>
+  <circle cx="290.5" cy="158.0" r="5" fill="#fff"/>
+  <text x="290.5" y="146.0" fill="rgba(255,255,255,.85)" font-size="14" text-anchor="middle">старт</text>
+  <circle id="bus" cx="290.5" cy="158.0" r="6" fill="#ffd876"/>
+ </svg>
+ <div id="loadTxt">идём…</div>
+ <div id="inappHint" style="display:none;color:rgba(255,255,255,.75);font-size:13px;max-width:280px;text-align:center">
+  Если вылетает — открой ссылку в Safari/Chrome (меню ⋯ → «Открыть в браузере»)</div>
+</div>
+
+<div id="crash">💥</div>
+<audio id="bgm" loop></audio>
+<div id="hand" style="position:fixed;z-index:7;font-size:56px;display:none;pointer-events:none;filter:grayscale(1) brightness(2.2) drop-shadow(0 2px 8px rgba(0,0,0,.6))">🖐</div>
+<div id="ui">
+ <div class="row">
+  <div class="tglwrap" id="gyroWrap" style="visibility:hidden"><span class="tlab" style="font-size:32px">⚛︎</span>
+   <label class="switch"><input type="checkbox" id="gyroTgl"><span class="knob"></span></label></div>
+  <div id="spdwrap" style="visibility:hidden">
+   <span id="spdLab">x1</span>
+   <span class="arr"><svg width="22" height="12" viewBox="0 0 22 12"><polygon points="10,0 10,12 0,6" fill="#fff"/><polygon points="21,0 21,12 11,6" fill="#fff"/></svg></span>
+   <input id="sSpeed" type="range" min="-1000" max="1000" value="100">
+   <span class="arr"><svg width="22" height="12" viewBox="0 0 22 12"><polygon points="1,0 1,12 11,6" fill="#fff"/><polygon points="12,0 12,12 22,6" fill="#fff"/></svg></span>
+  </div>
+  <button id="bRestart" style="visibility:hidden">⟲</button>
+  <div class="tglwrap" id="sndwrap" style="visibility:hidden"><span class="tlab" style="font-size:24px">♫</span>
+   <label class="switch"><input type="checkbox" id="sndTgl"><span class="knob"></span></label></div>
+ </div>
+</div>
+<script type="importmap">
+{"imports":{
+ "three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+ "@mkkellogg/gaussian-splats-3d":"https://cdn.jsdelivr.net/npm/@mkkellogg/gaussian-splats-3d@0.4.7/build/gaussian-splats-3d.module.min.js"
+}}
+</script>
+<script type="module">
+import * as GS from '@mkkellogg/gaussian-splats-3d';
+import * as THREE from 'three';
+
+const BASE_H=4.5, M_PER_UNIT=39;      // 0.115 ед ≈ 4.5 м
+const routeEl=document.getElementById('routeDone'), busEl=document.getElementById('bus'),
+      fullRoute=document.getElementById('route'), RL=fullRoute.getTotalLength();
+routeEl.style.strokeDasharray=RL; routeEl.style.strokeDashoffset=RL;
+function setProgress(f){ f=Math.max(0,Math.min(1,f));
+ routeEl.style.strokeDashoffset=RL*(1-f);
+ const p=fullRoute.getPointAtLength(RL*f); busEl.setAttribute('cx',p.x); busEl.setAttribute('cy',p.y);
+ document.getElementById('loadTxt').textContent = f<1 ? 'идём… '+Math.round(f*100)+'%' : 'пришли';
+}
+async function fetchProgress(url,weight,base){
+ const r=await fetch(url); const total=+r.headers.get('Content-Length')||0;
+ const reader=r.body.getReader(); const chunks=[]; let got=0;
+ while(true){ const {done,value}=await reader.read(); if(done)break;
+  chunks.push(value); got+=value.length; if(total)setProgress(base+weight*got/total); }
+ return new Blob(chunks);   // без лишней копии 90 МБ — меньше памяти на телефоне
+}
+
+if(/Telegram|Instagram|FBAN|FBAV|VKClient/i.test(navigator.userAgent)) document.getElementById('inappHint').style.display='block';
+const bgm=document.getElementById('bgm');
+document.getElementById('sndTgl').onchange=e=>{ if(e.target.checked){bgm.play().catch(()=>{e.target.checked=false;});} else bgm.pause(); };
+// звук качаем ПЕРВЫМ, кнопку показываем только когда реально можно жать
+try{
+ const ab=await (await fetch('audio.m4a')).blob();
+ bgm.src=URL.createObjectURL(ab);
+ document.getElementById('sndwrap').style.visibility='visible';
+}catch(e){}
+const TRACK = await (await fetch('track.json')).json();
+const DEM = await (await fetch('dem.json')).json();
+function groundAt(x,z){
+ const fx=(x-DEM.x0)/DEM.step, fz=(z-DEM.z0)/DEM.step;
+ const ix=Math.max(0,Math.min(DEM.nx-2,Math.floor(fx))), iz=Math.max(0,Math.min(DEM.nz-2,Math.floor(fz)));
+ const tx=Math.min(1,Math.max(0,fx-ix)), tz=Math.min(1,Math.max(0,fz-iz));
+ const d=DEM.data, s=DEM.scale, w=DEM.nx;
+ return (d[iz*w+ix]*(1-tx)*(1-tz)+d[iz*w+ix+1]*tx*(1-tz)+d[(iz+1)*w+ix]*(1-tx)*tz+d[(iz+1)*w+ix+1]*tx*tz)*s;
+}
+const N=TRACK.length;
+let cx=0,cz=0; for(const pt of TRACK){cx+=pt[0];cz+=pt[2];} cx/=N; cz/=N;
+const start=new THREE.Vector3(...TRACK[0]);
+const INTRO=4;
+const skyStart=new THREE.Vector3(start.x,start.y+0.8,start.z);
+
+const viewer = new GS.Viewer({
+ cameraUp:[0,1,0], initialCameraPosition:[skyStart.x,skyStart.y,skyStart.z], initialCameraLookAt:[start.x,start.y,start.z],
+ sharedMemoryForWorkers:false, sphericalHarmonicsDegree:0, useBuiltInControls:false,
+});
+const IS_MOBILE=/iPhone|iPad|Android/i.test(navigator.userAgent);
+const splatBlob = await fetchProgress(IS_MOBILE?'village_mobile.splat':'village_all.splat',0.33,0);   // скачивание = первая треть
+let fake=0.33;
+const anim=setInterval(()=>{ fake+=(0.97-fake)*0.06; setProgress(fake); },250); // сборка сцены = медленные две трети
+const blobUrl=URL.createObjectURL(splatBlob);
+await viewer.addSplatScene(blobUrl,{format:GS.SceneFormat.Splat,showLoadingUI:false,rotation:[1,0,0,0]});
+URL.revokeObjectURL(blobUrl);
+clearInterval(anim);
+setProgress(1);
+await new Promise(r=>setTimeout(r,600));
+document.getElementById('load').remove();
+viewer.start();
+const cam=viewer.camera;
+const scene=viewer.threeScene || viewer.splatMesh?.parent || null;
+
+// ---- мягкое облако-надпись "РЕБЛЁ" над дорогой, проезжаем насквозь ----
+function softSprite_unused(){
+ const c=document.createElement('canvas'); c.width=c.height=64;
+ const g=c.getContext('2d'); const grd=g.createRadialGradient(32,32,0,32,32,32);
+ grd.addColorStop(0,'rgba(255,255,255,.9)'); grd.addColorStop(.4,'rgba(255,255,255,.35)'); grd.addColorStop(1,'rgba(255,255,255,0)');
+ g.fillStyle=grd; g.fillRect(0,0,64,64);
+ return new THREE.CanvasTexture(c);
+}
+function makeCloudTitle_unused(){
+ const cnv=document.createElement('canvas'); cnv.width=1024; cnv.height=300;
+ const g=cnv.getContext('2d');
+ g.fillStyle='#000'; g.fillRect(0,0,1024,300);
+ g.font='700 190px -apple-system,Helvetica'; g.fillStyle='#fff';
+ g.textAlign='center'; g.textBaseline='middle'; g.fillText('РЕБЛЁ',512,150);
+ const d=g.getImageData(0,0,1024,300).data;
+ const pts=[], sz=[];
+ for(let y=0;y<300;y+=2) for(let x=0;x<1024;x+=2){
+  if(d[(y*1024+x)*4]>128 && Math.random()<0.5){
+   pts.push((x-512)/512*1.6+(Math.random()-0.5)*0.03,
+            (150-y)/512*1.6+(Math.random()-0.5)*0.03,
+            (Math.random()-0.5)*0.18);
+   }}
+ const geo=new THREE.BufferGeometry();
+ geo.setAttribute('position',new THREE.Float32BufferAttribute(pts,3));
+ const mat=new THREE.PointsMaterial({map:softSprite(),color:0xffffff,size:0.09,transparent:true,opacity:0.5,
+  sizeAttenuation:true,depthWrite:false,blending:THREE.AdditiveBlending});
+ const cloud=new THREE.Points(geo,mat);
+ // висит над дорогой чуть впереди старта, поперёк движения
+ const a=new THREE.Vector3(...TRACK[6]), b=new THREE.Vector3(...TRACK[16]);
+ cloud.position.set(b.x,(b.y+0.55),b.z);
+ cloud.lookAt(a.x,a.y+0.55,a.z);
+ cloud.userData.at=16;
+ return cloud;
+}
+
+
+let phase='intro', t0=performance.now()/1000, idx=0;
+let demoT=null, demoStart=0, demoDone=false;
+function startDemoTimer(){ if(demoDone) return; clearTimeout(demoT);
+ demoT=setTimeout(()=>{ if(!demoDone){
+   const s=$('sSpeed'); s.classList.add('pulse');
+   setTimeout(()=>{ s.classList.remove('pulse');
+     if(!demoDone){ demoStart=performance.now(); demoAnim(); } },1700);
+ } },7000); }
+function demoAnim(){
+ if(demoDone) return;
+ const t=(performance.now()-demoStart)/1000;
+ let v;
+ if(t<1.25)      v=100+(700-100)*(t/1.25);
+ else if(t<3.0)  v=700-(1000)*((t-1.25)/1.75);
+ else if(t<4.0)  v=-300+(400)*((t-3.0)/1);
+ else { $('sSpeed').value=100; fmt(); handDemo(); demoDone=true; return; }
+ $('sSpeed').value=v; fmt();
+ requestAnimationFrame(demoAnim);
+}
+let handActive=false;
+function handDemo(){
+ if(window._userDragged) return;
+ const hd=document.getElementById('hand'); handActive=true;
+ hd.style.display='block';
+ const cxs=innerWidth/2, cys=innerHeight*0.45;
+ const t0h=performance.now();
+ (function ha(){
+  if(!handActive){hd.style.display='none';return;}
+  const t=(performance.now()-t0h)/1000;
+  let dx=0, dy=0;
+  if(t<0.5){ dx=0; dy=0; }                              // появилась
+  else if(t<4.5){ const u=(t-0.5)/4;                    // восьмёрка
+   dx=Math.sin(u*2*Math.PI)*130;
+   dy=-Math.sin(u*4*Math.PI)*70;
+  }
+  else { hd.style.display='none'; handActive=false; yawOff=0; pitchOff=0; return; }
+  hd.style.left=(cxs+dx-28)+'px'; hd.style.top=(cys+dy)+'px';
+  yawOff=dx/130*0.45; pitchOff=-dy/70*0.3;
+  requestAnimationFrame(ha);
+ })();
+}
+addEventListener('pointerdown',(e)=>{ if(e.target.closest('#ui')||e.target.closest('#sndwrap')||e.target.closest('#bRestart'))return; window._userDragged=true; if(handActive){handActive=false; yawOff=0; pitchOff=0;} },{capture:true});
+let ride=false, rv=0, lat=0, steer=0, gas=0;
+let yawOff=0,pitchOff=0,smYaw=null,smPos=null,endSlow=1;
+let gyro=null,gyroOn=false,gyroGranted=false;
+const qDevice=new THREE.Quaternion(), qYawFix=new THREE.Quaternion(), qCam=new THREE.Quaternion();
+const zee=new THREE.Vector3(0,0,1), upAxis=new THREE.Vector3(0,1,0), qScr2=new THREE.Quaternion(), q1=new THREE.Quaternion(-Math.sqrt(0.5),0,0,Math.sqrt(0.5)), qScr=new THREE.Quaternion(), eul=new THREE.Euler();
+function scrAngle(){ return THREE.MathUtils.degToRad(screen.orientation?screen.orientation.angle:(window.orientation||0)); }
+function devQuat(e,out){ // стандартный алгоритм DeviceOrientationControls (W3C ZXY)
+ eul.set(THREE.MathUtils.degToRad(e.beta||0),THREE.MathUtils.degToRad(e.alpha||0),-THREE.MathUtils.degToRad(e.gamma||0),'YXZ');
+ out.setFromEuler(eul); out.multiply(q1); out.multiply(qScr.setFromAxisAngle(zee,-scrAngle()));
+ return out; }
+if(!('ontouchstart' in window)) document.getElementById('gyroWrap').style.display='none';
+// тихая проверка: если события уже идут — разрешение есть
+addEventListener('deviceorientation',function probe(e){ if(e.alpha!==null){gyroGranted=true; gyro=e;} },{once:true});
+addEventListener('deviceorientation',e=>{ if(gyroGranted) gyro=e; });
+const $=id=>document.getElementById(id);
+
+function pathPoint(i){ i=Math.max(0,Math.min(N-1.001,i));
+ const j=Math.floor(i),f=i-j,A=TRACK[j],B=TRACK[Math.min(j+1,N-1)];
+ return new THREE.Vector3(A[0]+(B[0]-A[0])*f,A[1]+(B[1]-A[1])*f,A[2]+(B[2]-A[2])*f); }
+function pathDir(i){ const p=pathPoint(i),q=pathPoint(Math.min(i+8,N-1)); return Math.atan2(q.x-p.x,q.z-p.z); }
+const lerpAngle=(a,b,t)=>{let d=b-a;while(d>Math.PI)d-=2*Math.PI;while(d<-Math.PI)d+=2*Math.PI;return a+d*t;};
+
+const keysR={};
+addEventListener('keydown',e=>keysR[e.code]=true);
+addEventListener('keyup',e=>keysR[e.code]=false);
+let drag=null;
+addEventListener('pointerdown',e=>{if(e.target.closest('#ui')||e.target.closest('#gyroAsk'))return;drag=[e.clientX,e.clientY];});
+addEventListener('pointermove',e=>{if(!drag)return;
+ yawOff+=(e.clientX-drag[0])/innerWidth*3; pitchOff+=(e.clientY-drag[1])/innerHeight*2; drag=[e.clientX,e.clientY];});
+addEventListener('pointerup',()=>drag=null);
+
+
+function fmt(){
+ let v=parseFloat($('sSpeed').value); if(Math.abs(v)<25){v=0;$('sSpeed').value=0;}
+ const mult=(v/100); $('spdLab').textContent='x'+(Math.round(mult*10)/10).toString().replace('.0','');
+ // позиция подписи над кружком
+ const inp=$('sSpeed'), r=inp.getBoundingClientRect(), wrap=inp.parentElement.getBoundingClientRect();
+ const f=(v-(-1000))/(2000);
+ const pad=13, x=(r.left-wrap.left)+pad+f*(r.width-2*pad);
+ $('spdLab').style.left=x+'px';
+}
+$('sSpeed').addEventListener('pointerdown',()=>{demoDone=true;clearTimeout(demoT);});
+$('sSpeed').addEventListener('touchstart',()=>{demoDone=true;clearTimeout(demoT);});
+$('sSpeed').oninput=()=>{fmt();};
+const arrs=document.querySelectorAll('#spdwrap .arr');
+function stepSpeed(d){ demoDone=true; clearTimeout(demoT);
+ let v=parseFloat($('sSpeed').value); v=Math.round(v/100)*100+d*100;
+ v=Math.max(-1000,Math.min(1000,v)); $('sSpeed').value=v; fmt(); }
+arrs[0].addEventListener('click',e=>{e.preventDefault();stepSpeed(-1);});
+arrs[1].addEventListener('click',e=>{e.preventDefault();stepSpeed(1);});
+['dblclick'].forEach(ev=>document.addEventListener(ev,e=>e.preventDefault(),{passive:false}));
+addEventListener('resize',fmt);
+function crashNow(){ const c=document.getElementById('crash'); c.style.display='flex';
+ setTimeout(()=>c.style.display='none',700); rv=0; lat=0; steer=0; }
+// тач-газ: правая половина экрана — газ, левая — тормоз (в режиме поездки)
+addEventListener('touchstart',e=>{ if(!ride)return; for(const t of e.touches){ if(t.clientY<innerHeight*0.75){ gas=(t.clientX>innerWidth/2)?1:-1; } } });
+addEventListener('touchend',e=>{ if(!ride)return; if(e.touches.length===0)gas=0; });
+$('gyroTgl').onchange=async()=>{
+ const want=$('gyroTgl').checked;
+ if(want&&!gyroGranted){
+  try{ if(typeof DeviceOrientationEvent!=='undefined'&&DeviceOrientationEvent.requestPermission){
+    const r=await DeviceOrientationEvent.requestPermission();
+    if(r!=='granted'){$('gyroTgl').checked=false;return;} }
+   gyroGranted=true;
+  }catch(e){$('gyroTgl').checked=false;return;}
+ }
+ gyroOn=want;
+ if(gyroOn&&gyro){ devQuat(gyro,qDevice);
+  const f=new THREE.Vector3(0,0,-1).applyQuaternion(qDevice);
+  qYawFix.setFromAxisAngle(new THREE.Vector3(0,1,0), (smYaw||0)-Math.atan2(f.x,f.z)); }
+};
+$('bRestart').onclick=()=>{['gyroWrap','spdwrap','bRestart'].forEach(id=>document.getElementById(id).style.visibility='hidden');phase='intro';t0=performance.now()/1000;idx=0;yawOff=0;pitchOff=0;smYaw=null;smPos=null;endSlow=1;
+ $('sSpeed').value=100;fmt();
+};
+
+let last=performance.now();
+function tick(){
+ requestAnimationFrame(tick);
+ const now=performance.now(), dt=Math.min((now-last)/1000,0.1); last=now;
+ const tsec=now/1000;
+  let sv=parseFloat($('sSpeed').value); if(Math.abs(sv)<25)sv=0;
+ const speed=sv/100;
+ const hOff=0;
+
+ if(phase==='intro'){
+  const u=Math.min(1,(tsec-t0)/INTRO), e=u*u*(3-2*u);
+  const p=new THREE.Vector3().lerpVectors(skyStart,start,e);
+  cam.position.copy(p);
+  const d0=pathDir(0);
+  const hor=new THREE.Vector3(start.x+Math.sin(d0)*3,start.y,start.z+Math.cos(d0)*3);
+  const look=new THREE.Vector3().lerpVectors(new THREE.Vector3(cx,0,cz),hor,e);
+  cam.lookAt(look.x,look.y,look.z);
+  if(u>=1){phase='track';smYaw=pathDir(0);smPos=start.clone();['gyroWrap','spdwrap','bRestart'].forEach(id=>document.getElementById(id).style.visibility='visible');fmt();startDemoTimer();}
+ } else if(ride){
+  // мотоцикл: газ/тормоз + руль
+  let g=gas, st=0;
+  if(keysR['KeyW']||keysR['ArrowUp'])g=1;
+  if(keysR['KeyS']||keysR['ArrowDown'])g=-1;
+  if(keysR['KeyA']||keysR['ArrowLeft'])st=-1;
+  if(keysR['KeyD']||keysR['ArrowRight'])st=1;
+  st+= -yawOff*2; // свайп в поездке рулит
+  yawOff*=Math.pow(0.05,dt);
+  rv+= (g>0?14*dt:(g<0?-20*dt:0)); rv-=rv*1.2*dt; rv=Math.max(0,Math.min(28,rv));
+  idx+=rv*dt; if(idx>N-2){idx=N-2;rv=0;} 
+  lat+=st*0.25*dt*Math.min(1,rv/6);
+  if(Math.abs(lat)>0.22){ crashNow(); }
+  const p=pathPoint(idx), yawP=pathDir(idx);
+  const rx=Math.cos(yawP), rz=-Math.sin(yawP); // right vector
+  p.x+=rx*lat; p.z+=rz*lat;
+  const pAh=pathPoint(Math.min(idx+4,N-1));
+  p.y=Math.max(groundAt(p.x,p.z),groundAt(pAh.x,pAh.z))+0.15+Math.max(hOff,0)*0.3;
+  if(!smPos)smPos=p.clone(); smPos.lerp(p,1-Math.pow(0.0005,dt));
+  smYaw=(smYaw===null)?yawP:lerpAngle(smYaw,yawP+st*0.25,1-Math.pow(0.02,dt));
+  smPos.y=Math.max(smPos.y, groundAt(smPos.x,smPos.z)+0.15);
+  cam.position.copy(smPos);
+  const yw=smYaw, pt2=-0.05;
+  cam.lookAt(smPos.x+Math.sin(yw)*Math.cos(pt2),smPos.y+Math.sin(pt2),smPos.z+Math.cos(yw)*Math.cos(pt2));
+ } else {
+  if(idx>=N-30 && speed>0) endSlow=Math.max(0,(N-2-idx)/28); else endSlow=1;
+  idx+=speed*endSlow*3*dt;
+  if(idx<0)idx=0; if(idx>N-2)idx=N-2;
+  const p=pathPoint(idx); p.y+=hOff; 
+  if(!smPos)smPos=p.clone();
+  smPos.lerp(p,1-Math.pow(0.001,dt));
+  const targetYaw=pathDir(idx);
+  smYaw=(smYaw===null)?targetYaw:lerpAngle(smYaw,targetYaw,1-Math.pow(0.02,dt));
+  cam.position.copy(smPos);
+  if(gyroOn&&gyro){                    // телефон + помощь пальцами
+   devQuat(gyro,qDevice);
+   qScr2.setFromAxisAngle(upAxis,yawOff);
+   qCam.copy(qScr2).multiply(qYawFix).multiply(qDevice);
+   cam.quaternion.copy(qCam);
+   cam.rotateX(pitchOff*0.7);
+  } else {
+   const yaw=smYaw+yawOff, pit=Math.max(-1.3,Math.min(1.3,pitchOff));
+   cam.lookAt(smPos.x+Math.sin(yaw)*Math.cos(pit),smPos.y+Math.sin(pit),smPos.z+Math.cos(yaw)*Math.cos(pit));
+  }
+ }
+}
+tick();
+</script>
+</body>
+</html>
