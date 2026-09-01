@@ -83,24 +83,13 @@
  <div id="inappHint" style="display:none;color:rgba(255,255,255,.75);font-size:13px;max-width:280px;text-align:center">
   Если вылетает — открой ссылку в Safari/Chrome (меню ⋯ → «Открыть в браузере»)</div>
 </div>
-
-<div id="crash">💥</div>
-<audio id="bgm" loop></audio>
-<div id="hand" style="position:fixed;z-index:7;font-size:56px;display:none;pointer-events:none;filter:grayscale(1) brightness(2.2) drop-shadow(0 2px 8px rgba(0,0,0,.6))">🖐</div>
 <div id="ui">
  <div class="row">
   <div class="tglwrap" id="gyroWrap" style="visibility:hidden"><span class="tlab" style="font-size:32px">⚛︎</span>
    <label class="switch"><input type="checkbox" id="gyroTgl"><span class="knob"></span></label></div>
-  <div id="spdwrap" style="visibility:hidden">
-   <span id="spdLab">x1</span>
-   <span class="arr"><svg width="22" height="12" viewBox="0 0 22 12"><polygon points="10,0 10,12 0,6" fill="#fff"/><polygon points="21,0 21,12 11,6" fill="#fff"/></svg></span>
-   <input id="sSpeed" type="range" min="-1000" max="1000" value="100">
-   <span class="arr"><svg width="22" height="12" viewBox="0 0 22 12"><polygon points="1,0 1,12 11,6" fill="#fff"/><polygon points="12,0 12,12 22,6" fill="#fff"/></svg></span>
-  </div>
   <button id="bRestart" style="visibility:hidden">⟲</button>
-  <div class="tglwrap" id="sndwrap" style="visibility:hidden"><span class="tlab" style="font-size:24px">♫</span>
-   <label class="switch"><input type="checkbox" id="sndTgl"><span class="knob"></span></label></div>
  </div>
+ <div id="hint" style="font-size:13px;color:rgba(255,255,255,.55);text-shadow:0 1px 4px #000"></div>
 </div>
 <script type="importmap">
 {"imports":{
@@ -111,33 +100,22 @@
 <script type="module">
 import * as GS from '@mkkellogg/gaussian-splats-3d';
 import * as THREE from 'three';
-
-const BASE_H=4.5, M_PER_UNIT=39;      // 0.115 ед ≈ 4.5 м
-const routeEl=document.getElementById('routeDone'), busEl=document.getElementById('bus'),
-      fullRoute=document.getElementById('route'), RL=fullRoute.getTotalLength();
+const $=id=>document.getElementById(id);
+const routeEl=$('routeDone'), busEl=$('bus'), fullRoute=$('route'), RL=fullRoute.getTotalLength();
 routeEl.style.strokeDasharray=RL; routeEl.style.strokeDashoffset=RL;
 function setProgress(f){ f=Math.max(0,Math.min(1,f));
  routeEl.style.strokeDashoffset=RL*(1-f);
  const p=fullRoute.getPointAtLength(RL*f); busEl.setAttribute('cx',p.x); busEl.setAttribute('cy',p.y);
- document.getElementById('loadTxt').textContent = f<1 ? 'идём… '+Math.round(f*100)+'%' : 'пришли';
+ $('loadTxt').textContent = f<1 ? 'идём… '+Math.round(f*100)+'%' : 'пришли';
 }
 async function fetchProgress(url,weight,base){
  const r=await fetch(url); const total=+r.headers.get('Content-Length')||0;
  const reader=r.body.getReader(); const chunks=[]; let got=0;
  while(true){ const {done,value}=await reader.read(); if(done)break;
   chunks.push(value); got+=value.length; if(total)setProgress(base+weight*got/total); }
- return new Blob(chunks);   // без лишней копии 90 МБ — меньше памяти на телефоне
+ return new Blob(chunks);
 }
-
-if(/Telegram|Instagram|FBAN|FBAV|VKClient/i.test(navigator.userAgent)) document.getElementById('inappHint').style.display='block';
-const bgm=document.getElementById('bgm');
-document.getElementById('sndTgl').onchange=e=>{ if(e.target.checked){bgm.play().catch(()=>{e.target.checked=false;});} else bgm.pause(); };
-// звук качаем ПЕРВЫМ, кнопку показываем только когда реально можно жать
-try{
- const ab=await (await fetch('audio.m4a')).blob();
- bgm.src=URL.createObjectURL(ab);
- document.getElementById('sndwrap').style.visibility='visible';
-}catch(e){}
+if(/Telegram|Instagram|FBAN|FBAV|VKClient/i.test(navigator.userAgent)) $('inappHint').style.display='block';
 const TRACK = await (await fetch('track.json')).json();
 const DEM = await (await fetch('dem.json')).json();
 function groundAt(x,z){
@@ -149,164 +127,54 @@ function groundAt(x,z){
 }
 const N=TRACK.length;
 let cx=0,cz=0; for(const pt of TRACK){cx+=pt[0];cz+=pt[2];} cx/=N; cz/=N;
-const start=new THREE.Vector3(...TRACK[0]);
-const INTRO=4;
-const skyStart=new THREE.Vector3(start.x,start.y+0.8,start.z);
-
+const start=new THREE.Vector3(TRACK[0][0],TRACK[0][1]+0.15,TRACK[0][2]);
+const skyStart=new THREE.Vector3(start.x,start.y+0.9,start.z);
 const viewer = new GS.Viewer({
  cameraUp:[0,1,0], initialCameraPosition:[skyStart.x,skyStart.y,skyStart.z], initialCameraLookAt:[start.x,start.y,start.z],
  sharedMemoryForWorkers:false, sphericalHarmonicsDegree:0, useBuiltInControls:false,
 });
 const IS_MOBILE=/iPhone|iPad|Android/i.test(navigator.userAgent);
-const splatBlob = await fetchProgress(IS_MOBILE?'village_mobile.splat':'village_all.splat',0.33,0);   // скачивание = первая треть
+const splatBlob = await fetchProgress(IS_MOBILE?'village_mobile.splat':'village_all.splat',0.33,0);
 let fake=0.33;
-const anim=setInterval(()=>{ fake+=(0.97-fake)*0.06; setProgress(fake); },250); // сборка сцены = медленные две трети
+const anim=setInterval(()=>{ fake+=(0.97-fake)*0.06; setProgress(fake); },250);
 const blobUrl=URL.createObjectURL(splatBlob);
 await viewer.addSplatScene(blobUrl,{format:GS.SceneFormat.Splat,showLoadingUI:false,rotation:[0.999276,-0.025749,0.000000,-0.028009],position:[0,0.7344,0]});
 URL.revokeObjectURL(blobUrl);
-clearInterval(anim);
-setProgress(1);
+clearInterval(anim); setProgress(1);
 await new Promise(r=>setTimeout(r,600));
-document.getElementById('load').remove();
+$('load').remove();
 viewer.start();
 const cam=viewer.camera;
-const scene=viewer.threeScene || viewer.splatMesh?.parent || null;
-
-// ---- мягкое облако-надпись "РЕБЛЁ" над дорогой, проезжаем насквозь ----
-function softSprite_unused(){
- const c=document.createElement('canvas'); c.width=c.height=64;
- const g=c.getContext('2d'); const grd=g.createRadialGradient(32,32,0,32,32,32);
- grd.addColorStop(0,'rgba(255,255,255,.9)'); grd.addColorStop(.4,'rgba(255,255,255,.35)'); grd.addColorStop(1,'rgba(255,255,255,0)');
- g.fillStyle=grd; g.fillRect(0,0,64,64);
- return new THREE.CanvasTexture(c);
-}
-function makeCloudTitle_unused(){
- const cnv=document.createElement('canvas'); cnv.width=1024; cnv.height=300;
- const g=cnv.getContext('2d');
- g.fillStyle='#000'; g.fillRect(0,0,1024,300);
- g.font='700 190px -apple-system,Helvetica'; g.fillStyle='#fff';
- g.textAlign='center'; g.textBaseline='middle'; g.fillText('РЕБЛЁ',512,150);
- const d=g.getImageData(0,0,1024,300).data;
- const pts=[], sz=[];
- for(let y=0;y<300;y+=2) for(let x=0;x<1024;x+=2){
-  if(d[(y*1024+x)*4]>128 && Math.random()<0.5){
-   pts.push((x-512)/512*1.6+(Math.random()-0.5)*0.03,
-            (150-y)/512*1.6+(Math.random()-0.5)*0.03,
-            (Math.random()-0.5)*0.18);
-   }}
- const geo=new THREE.BufferGeometry();
- geo.setAttribute('position',new THREE.Float32BufferAttribute(pts,3));
- const mat=new THREE.PointsMaterial({map:softSprite(),color:0xffffff,size:0.09,transparent:true,opacity:0.5,
-  sizeAttenuation:true,depthWrite:false,blending:THREE.AdditiveBlending});
- const cloud=new THREE.Points(geo,mat);
- // висит над дорогой чуть впереди старта, поперёк движения
- const a=new THREE.Vector3(...TRACK[6]), b=new THREE.Vector3(...TRACK[16]);
- cloud.position.set(b.x,(b.y+0.55),b.z);
- cloud.lookAt(a.x,a.y+0.55,a.z);
- cloud.userData.at=16;
- return cloud;
-}
-
-
-let phase='intro', t0=performance.now()/1000, idx=0;
-let demoT=null, demoStart=0, demoDone=false;
-function startDemoTimer(){ if(demoDone) return; clearTimeout(demoT);
- demoT=setTimeout(()=>{ if(!demoDone){
-   const s=$('sSpeed'); s.classList.add('pulse');
-   setTimeout(()=>{ s.classList.remove('pulse');
-     if(!demoDone){ demoStart=performance.now(); demoAnim(); } },1700);
- } },7000); }
-function demoAnim(){
- if(demoDone) return;
- const t=(performance.now()-demoStart)/1000;
- let v;
- if(t<1.25)      v=100+(700-100)*(t/1.25);
- else if(t<3.0)  v=700-(1000)*((t-1.25)/1.75);
- else if(t<4.0)  v=-300+(400)*((t-3.0)/1);
- else { $('sSpeed').value=100; fmt(); handDemo(); demoDone=true; return; }
- $('sSpeed').value=v; fmt();
- requestAnimationFrame(demoAnim);
-}
-let handActive=false;
-function handDemo(){
- if(window._userDragged) return;
- const hd=document.getElementById('hand'); handActive=true;
- hd.style.display='block';
- const cxs=innerWidth/2, cys=innerHeight*0.45;
- const t0h=performance.now();
- (function ha(){
-  if(!handActive){hd.style.display='none';return;}
-  const t=(performance.now()-t0h)/1000;
-  let dx=0, dy=0;
-  if(t<0.5){ dx=0; dy=0; }                              // появилась
-  else if(t<4.5){ const u=(t-0.5)/4;                    // восьмёрка
-   dx=Math.sin(u*2*Math.PI)*130;
-   dy=-Math.sin(u*4*Math.PI)*70;
-  }
-  else { hd.style.display='none'; handActive=false; yawOff=0; pitchOff=0; return; }
-  hd.style.left=(cxs+dx-28)+'px'; hd.style.top=(cys+dy)+'px';
-  yawOff=dx/130*0.45; pitchOff=-dy/70*0.3;
-  requestAnimationFrame(ha);
- })();
-}
-addEventListener('pointerdown',(e)=>{ if(e.target.closest('#ui')||e.target.closest('#sndwrap')||e.target.closest('#bRestart'))return; window._userDragged=true; if(handActive){handActive=false; yawOff=0; pitchOff=0;} },{capture:true});
-let ride=false, rv=0, lat=0, steer=0, gas=0;
-let yawOff=0,pitchOff=0,smYaw=null,smPos=null,endSlow=1;
+function pathDir0(){ const A=TRACK[0],B=TRACK[8]; return Math.atan2(B[0]-A[0],B[2]-A[2]); }
+let phase='intro', t0=performance.now()/1000;
+let yaw=pathDir0(), pitch=-0.05;
+const pos=start.clone();
+const keys={};
+addEventListener('keydown',e=>{keys[e.code]=true; if(['Space','ArrowUp','ArrowDown'].includes(e.code))e.preventDefault();});
+addEventListener('keyup',e=>keys[e.code]=false);
+let drag=null;
+addEventListener('pointerdown',e=>{if(e.target.closest('#ui'))return;drag=[e.clientX,e.clientY];});
+addEventListener('pointermove',e=>{if(!drag)return;
+ yaw+=(e.clientX-drag[0])/innerWidth*3; pitch+=(e.clientY-drag[1])/innerHeight*2;
+ pitch=Math.max(-1.35,Math.min(1.35,pitch)); drag=[e.clientX,e.clientY];});
+addEventListener('pointerup',()=>drag=null);
+// два пальца = вперёд (телефон)
+let touchFwd=0;
+addEventListener('touchstart',e=>{ if(e.touches.length>=2) touchFwd=1; });
+addEventListener('touchend',e=>{ if(e.touches.length<2) touchFwd=0; });
+// гироскоп (как в Реблё)
 let gyro=null,gyroOn=false,gyroGranted=false;
 const qDevice=new THREE.Quaternion(), qYawFix=new THREE.Quaternion(), qCam=new THREE.Quaternion();
-const zee=new THREE.Vector3(0,0,1), upAxis=new THREE.Vector3(0,1,0), qScr2=new THREE.Quaternion(), q1=new THREE.Quaternion(-Math.sqrt(0.5),0,0,Math.sqrt(0.5)), qScr=new THREE.Quaternion(), eul=new THREE.Euler();
+const zee=new THREE.Vector3(0,0,1), upAxis=new THREE.Vector3(0,1,0), qScr2=new THREE.Quaternion(),
+ q1=new THREE.Quaternion(-Math.sqrt(0.5),0,0,Math.sqrt(0.5)), qScr=new THREE.Quaternion(), eul=new THREE.Euler();
 function scrAngle(){ return THREE.MathUtils.degToRad(screen.orientation?screen.orientation.angle:(window.orientation||0)); }
-function devQuat(e,out){ // стандартный алгоритм DeviceOrientationControls (W3C ZXY)
+function devQuat(e,out){
  eul.set(THREE.MathUtils.degToRad(e.beta||0),THREE.MathUtils.degToRad(e.alpha||0),-THREE.MathUtils.degToRad(e.gamma||0),'YXZ');
  out.setFromEuler(eul); out.multiply(q1); out.multiply(qScr.setFromAxisAngle(zee,-scrAngle()));
  return out; }
-if(!('ontouchstart' in window)) document.getElementById('gyroWrap').style.display='none';
-// тихая проверка: если события уже идут — разрешение есть
+if(!('ontouchstart' in window)) $('gyroWrap').style.display='none';
 addEventListener('deviceorientation',function probe(e){ if(e.alpha!==null){gyroGranted=true; gyro=e;} },{once:true});
 addEventListener('deviceorientation',e=>{ if(gyroGranted) gyro=e; });
-const $=id=>document.getElementById(id);
-
-function pathPoint(i){ i=Math.max(0,Math.min(N-1.001,i));
- const j=Math.floor(i),f=i-j,A=TRACK[j],B=TRACK[Math.min(j+1,N-1)];
- return new THREE.Vector3(A[0]+(B[0]-A[0])*f,A[1]+(B[1]-A[1])*f,A[2]+(B[2]-A[2])*f); }
-function pathDir(i){ const p=pathPoint(i),q=pathPoint(Math.min(i+8,N-1)); return Math.atan2(q.x-p.x,q.z-p.z); }
-const lerpAngle=(a,b,t)=>{let d=b-a;while(d>Math.PI)d-=2*Math.PI;while(d<-Math.PI)d+=2*Math.PI;return a+d*t;};
-
-const keysR={};
-addEventListener('keydown',e=>keysR[e.code]=true);
-addEventListener('keyup',e=>keysR[e.code]=false);
-let drag=null;
-addEventListener('pointerdown',e=>{if(e.target.closest('#ui')||e.target.closest('#gyroAsk'))return;drag=[e.clientX,e.clientY];});
-addEventListener('pointermove',e=>{if(!drag)return;
- yawOff+=(e.clientX-drag[0])/innerWidth*3; pitchOff+=(e.clientY-drag[1])/innerHeight*2; drag=[e.clientX,e.clientY];});
-addEventListener('pointerup',()=>drag=null);
-
-
-function fmt(){
- let v=parseFloat($('sSpeed').value); if(Math.abs(v)<25){v=0;$('sSpeed').value=0;}
- const mult=(v/100); $('spdLab').textContent='x'+(Math.round(mult*10)/10).toString().replace('.0','');
- // позиция подписи над кружком
- const inp=$('sSpeed'), r=inp.getBoundingClientRect(), wrap=inp.parentElement.getBoundingClientRect();
- const f=(v-(-1000))/(2000);
- const pad=13, x=(r.left-wrap.left)+pad+f*(r.width-2*pad);
- $('spdLab').style.left=x+'px';
-}
-$('sSpeed').addEventListener('pointerdown',()=>{demoDone=true;clearTimeout(demoT);});
-$('sSpeed').addEventListener('touchstart',()=>{demoDone=true;clearTimeout(demoT);});
-$('sSpeed').oninput=()=>{fmt();};
-const arrs=document.querySelectorAll('#spdwrap .arr');
-function stepSpeed(d){ demoDone=true; clearTimeout(demoT);
- let v=parseFloat($('sSpeed').value); v=Math.round(v/100)*100+d*100;
- v=Math.max(-1000,Math.min(1000,v)); $('sSpeed').value=v; fmt(); }
-arrs[0].addEventListener('click',e=>{e.preventDefault();stepSpeed(-1);});
-arrs[1].addEventListener('click',e=>{e.preventDefault();stepSpeed(1);});
-['dblclick'].forEach(ev=>document.addEventListener(ev,e=>e.preventDefault(),{passive:false}));
-addEventListener('resize',fmt);
-function crashNow(){ const c=document.getElementById('crash'); c.style.display='flex';
- setTimeout(()=>c.style.display='none',700); rv=0; lat=0; steer=0; }
-// тач-газ: правая половина экрана — газ, левая — тормоз (в режиме поездки)
-addEventListener('touchstart',e=>{ if(!ride)return; for(const t of e.touches){ if(t.clientY<innerHeight*0.75){ gas=(t.clientX>innerWidth/2)?1:-1; } } });
-addEventListener('touchend',e=>{ if(!ride)return; if(e.touches.length===0)gas=0; });
 $('gyroTgl').onchange=async()=>{
  const want=$('gyroTgl').checked;
  if(want&&!gyroGranted){
@@ -319,73 +187,47 @@ $('gyroTgl').onchange=async()=>{
  gyroOn=want;
  if(gyroOn&&gyro){ devQuat(gyro,qDevice);
   const f=new THREE.Vector3(0,0,-1).applyQuaternion(qDevice);
-  qYawFix.setFromAxisAngle(new THREE.Vector3(0,1,0), (smYaw||0)-Math.atan2(f.x,f.z)); }
+  qYawFix.setFromAxisAngle(upAxis, yaw-Math.atan2(f.x,f.z)); }
 };
-$('bRestart').onclick=()=>{['gyroWrap','spdwrap','bRestart'].forEach(id=>document.getElementById(id).style.visibility='hidden');phase='intro';t0=performance.now()/1000;idx=0;yawOff=0;pitchOff=0;smYaw=null;smPos=null;endSlow=1;
- $('sSpeed').value=100;fmt();
-};
-
+$('bRestart').onclick=()=>{phase='intro';t0=performance.now()/1000;pos.copy(start);yaw=pathDir0();pitch=-0.05;
+ ['gyroWrap','bRestart'].forEach(id=>$(id).style.visibility='hidden');$('hint').textContent='';};
+function showUI(){ ['gyroWrap','bRestart'].forEach(id=>$(id).style.visibility='visible');
+ $('hint').textContent = IS_MOBILE ? 'палец — смотреть · два пальца — вперёд' : 'WASD — полёт · Q/E — вниз/вверх · Shift — быстрее · мышь — смотреть';
+ setTimeout(()=>{$('hint').style.transition='opacity 2s';$('hint').style.opacity='0';},9000); }
 let last=performance.now();
 function tick(){
  requestAnimationFrame(tick);
  const now=performance.now(), dt=Math.min((now-last)/1000,0.1); last=now;
  const tsec=now/1000;
-  let sv=parseFloat($('sSpeed').value); if(Math.abs(sv)<25)sv=0;
- const speed=sv/100;
- const hOff=0;
-
  if(phase==='intro'){
-  const u=Math.min(1,(tsec-t0)/INTRO), e=u*u*(3-2*u);
+  const u=Math.min(1,(tsec-t0)/4), e=u*u*(3-2*u);
   const p=new THREE.Vector3().lerpVectors(skyStart,start,e);
   cam.position.copy(p);
-  const d0=pathDir(0);
+  const d0=pathDir0();
   const hor=new THREE.Vector3(start.x+Math.sin(d0)*3,start.y,start.z+Math.cos(d0)*3);
   const look=new THREE.Vector3().lerpVectors(new THREE.Vector3(cx,0,cz),hor,e);
   cam.lookAt(look.x,look.y,look.z);
-  if(u>=1){phase='track';smYaw=pathDir(0);smPos=start.clone();['gyroWrap','spdwrap','bRestart'].forEach(id=>document.getElementById(id).style.visibility='visible');fmt();startDemoTimer();}
- } else if(ride){
-  // мотоцикл: газ/тормоз + руль
-  let g=gas, st=0;
-  if(keysR['KeyW']||keysR['ArrowUp'])g=1;
-  if(keysR['KeyS']||keysR['ArrowDown'])g=-1;
-  if(keysR['KeyA']||keysR['ArrowLeft'])st=-1;
-  if(keysR['KeyD']||keysR['ArrowRight'])st=1;
-  st+= -yawOff*2; // свайп в поездке рулит
-  yawOff*=Math.pow(0.05,dt);
-  rv+= (g>0?14*dt:(g<0?-20*dt:0)); rv-=rv*1.2*dt; rv=Math.max(0,Math.min(28,rv));
-  idx+=rv*dt; if(idx>N-2){idx=N-2;rv=0;} 
-  lat+=st*0.25*dt*Math.min(1,rv/6);
-  if(Math.abs(lat)>0.22){ crashNow(); }
-  const p=pathPoint(idx), yawP=pathDir(idx);
-  const rx=Math.cos(yawP), rz=-Math.sin(yawP); // right vector
-  p.x+=rx*lat; p.z+=rz*lat;
-  const pAh=pathPoint(Math.min(idx+4,N-1));
-  p.y=Math.max(groundAt(p.x,p.z),groundAt(pAh.x,pAh.z))+0.15+Math.max(hOff,0)*0.3;
-  if(!smPos)smPos=p.clone(); smPos.lerp(p,1-Math.pow(0.0005,dt));
-  smYaw=(smYaw===null)?yawP:lerpAngle(smYaw,yawP+st*0.25,1-Math.pow(0.02,dt));
-  smPos.y=Math.max(smPos.y, groundAt(smPos.x,smPos.z)+0.15);
-  cam.position.copy(smPos);
-  const yw=smYaw, pt2=-0.05;
-  cam.lookAt(smPos.x+Math.sin(yw)*Math.cos(pt2),smPos.y+Math.sin(pt2),smPos.z+Math.cos(yw)*Math.cos(pt2));
+  if(u>=1){phase='free';pos.copy(start);yaw=d0;pitch=-0.05;showUI();}
  } else {
-  if(idx>=N-30 && speed>0) endSlow=Math.max(0,(N-2-idx)/28); else endSlow=1;
-  idx+=speed*endSlow*3*dt;
-  if(idx<0)idx=0; if(idx>N-2)idx=N-2;
-  const p=pathPoint(idx); p.y+=hOff; 
-  if(!smPos)smPos=p.clone();
-  smPos.lerp(p,1-Math.pow(0.001,dt));
-  const targetYaw=pathDir(idx);
-  smYaw=(smYaw===null)?targetYaw:lerpAngle(smYaw,targetYaw,1-Math.pow(0.02,dt));
-  cam.position.copy(smPos);
-  if(gyroOn&&gyro){                    // телефон + помощь пальцами
+  let f=(keys['KeyW']||keys['ArrowUp']?1:0)+(keys['KeyS']||keys['ArrowDown']?-1:0)+touchFwd;
+  let r=(keys['KeyD']||keys['ArrowRight']?1:0)+(keys['KeyA']||keys['ArrowLeft']?-1:0);
+  let v=(keys['KeyE']||keys['Space']?1:0)+(keys['KeyQ']||keys['KeyC']?-1:0);
+  const spd=0.55*((keys['ShiftLeft']||keys['ShiftRight'])?3:1);
+  const cp=Math.cos(pitch), sp=Math.sin(pitch), sy=Math.sin(yaw), cy=Math.cos(yaw);
+  // вперёд — куда смотришь; вправо: yaw+90° (D — направо, A — налево)
+  pos.x+=(f*sy*cp + r*cy)*spd*dt;
+  pos.z+=(f*cy*cp - r*sy)*spd*dt;
+  pos.y+=(f*sp + v)*spd*dt;
+  pos.y=Math.max(pos.y, groundAt(pos.x,pos.z)+0.03);
+  cam.position.copy(pos);
+  if(gyroOn&&gyro){
    devQuat(gyro,qDevice);
-   qScr2.setFromAxisAngle(upAxis,yawOff);
+   qScr2.setFromAxisAngle(upAxis,0);
    qCam.copy(qScr2).multiply(qYawFix).multiply(qDevice);
    cam.quaternion.copy(qCam);
-   cam.rotateX(pitchOff*0.7);
+   const fv=new THREE.Vector3(0,0,-1).applyQuaternion(qCam); yaw=Math.atan2(fv.x,fv.z);
   } else {
-   const yaw=smYaw+yawOff, pit=Math.max(-1.3,Math.min(1.3,pitchOff));
-   cam.lookAt(smPos.x+Math.sin(yaw)*Math.cos(pit),smPos.y+Math.sin(pit),smPos.z+Math.cos(yaw)*Math.cos(pit));
+   cam.lookAt(pos.x+sy*cp, pos.y+sp, pos.z+cy*cp);
   }
  }
 }
